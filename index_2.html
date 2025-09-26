@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Invia USDT TRC-20</title>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+    input, button { margin: 10px 0; padding: 10px; width: 100%; }
+    #walletInfo { margin-top: 20px; background: #fff; padding: 15px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Invia USDT TRC-20</h2>
+
+  <button id="connectBtn">🔗 Connetti Wallet</button>
+
+  <div id="walletInfo" style="display:none;">
+    <p><strong>Indirizzo:</strong> <span id="walletAddress"></span></p>
+    <p><strong>Saldo USDT:</strong> <span id="usdtBalance"></span></p>
+    <p><strong>Saldo TRX:</strong> <span id="trxBalance"></span></p>
+  </div>
+
+  <form id="usdtForm" style="display:none;">
+    <input type="text" id="recipient" placeholder="Indirizzo destinatario" required />
+    <input type="number" id="amount" placeholder="Importo USDT" required />
+    <button type="submit">🚀 Invia USDT</button>
+  </form>
+
+  <script>
+    const USDT_CONTRACT = "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj";
+
+    async function waitForTronWeb() {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (
+            window.tronWeb &&
+            window.tronWeb.ready &&
+            window.tronWeb.defaultAddress.base58 !== 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb'
+          ) {
+            resolve(true);
+          } else {
+            setTimeout(check, 500);
+          }
+        };
+        check();
+      });
+    }
+
+    async function getBalances(address) {
+      const contract = await tronWeb.contract().at(USDT_CONTRACT);
+      const usdtRaw = await contract.balanceOf(address).call();
+      const trxRaw = await tronWeb.trx.getBalance(address);
+      return {
+        usdt: (usdtRaw / 1e6).toFixed(2),
+        trx: (trxRaw / 1e6).toFixed(2)
+      };
+    }
+
+    document.getElementById("connectBtn").addEventListener("click", async () => {
+      const connected = await waitForTronWeb();
+      if (!connected) {
+        alert("Connetti TronLink per continuare.");
+        return;
+      }
+
+      const address = tronWeb.defaultAddress.base58;
+      document.getElementById("walletAddress").textContent = address;
+
+      const balances = await getBalances(address);
+      document.getElementById("usdtBalance").textContent = balances.usdt + " USDT";
+      document.getElementById("trxBalance").textContent = balances.trx + " TRX";
+
+      document.getElementById("walletInfo").style.display = "block";
+      document.getElementById("usdtForm").style.display = "block";
+    });
+
+    document.getElementById("usdtForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const recipient = document.getElementById("recipient").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+
+      if (!recipient || isNaN(amount) || amount <= 0) {
+        alert("Inserisci dati validi.");
+        return;
+      }
+
+      const contract = await tronWeb.contract().at(USDT_CONTRACT);
+      try {
+        const tx = await contract.transfer(recipient, amount * 1e6).send();
+        alert("✅ Transazione inviata!\nTX: " + tx);
+      } catch (err) {
+        console.error(err);
+        alert("❌ Errore nella transazione.");
+      }
+    });
+  </script>
+</body>
+</html>
